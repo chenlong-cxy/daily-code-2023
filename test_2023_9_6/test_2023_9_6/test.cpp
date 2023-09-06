@@ -142,62 +142,134 @@
 //	return 0;
 //}
 
-#include <iostream>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <queue>
-#include <random>
-#include <Windows.h>
-using namespace std;
-class BlockQueue {
-public:
-	BlockQueue(int size = 10)
-		:_size(size)
-	{}
-	void Push(int data) {
-		unique_lock<mutex> ul(_mtx);
-		while (_q.size() == _size) {
-			_full.wait(ul);
-		}
-		_q.push(data);
-		_empty.notify_one();
-	}
-	int Pop() {
-		unique_lock<mutex> ul(_mtx);
-		while (_q.empty()) {
-			_empty.wait(ul);
-		}
-		int data = _q.front();
-		_q.pop();
-		_full.notify_one();
-		return data;
-	}
-private:
-	queue<int> _q;
-	int _size;
-	mutex _mtx;
-	condition_variable _empty;
-	condition_variable _full;
-};
+//#include <iostream>
+//#include <thread>
+//#include <mutex>
+//#include <condition_variable>
+//#include <queue>
+//#include <random>
+//#include <Windows.h>
+//using namespace std;
+//class BlockQueue {
+//public:
+//	BlockQueue(int size = 10)
+//		:_size(size)
+//	{}
+//	void Push(int data) {
+//		unique_lock<mutex> ul(_mtx);
+//		while (_q.size() == _size) {
+//			_full.wait(ul);
+//		}
+//		_q.push(data);
+//		_empty.notify_one();
+//	}
+//	int Pop() {
+//		unique_lock<mutex> ul(_mtx);
+//		while (_q.empty()) {
+//			_empty.wait(ul);
+//		}
+//		int data = _q.front();
+//		_q.pop();
+//		_full.notify_one();
+//		return data;
+//	}
+//private:
+//	queue<int> _q;
+//	int _size;
+//	mutex _mtx;
+//	condition_variable _empty;
+//	condition_variable _full;
+//};
+//
+//int main() {
+//	BlockQueue bq;
+//	thread producer([&] {
+//		while (1) {
+//			int data = rand();
+//			bq.Push(data);
+//			Sleep(1000);
+//			cout << "produce a data: " << data << endl;
+//		}
+//	});
+//	thread consumer([&] {
+//		while (1) {
+//			int data = bq.Pop();
+//			cout << "consume a data: " << data << endl;
+//		}
+//	});
+//	producer.join();
+//	consumer.join();
+//	return 0;
+//}
 
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <unordered_set>
+using namespace std;
+class Solution {
+public:
+	int longestConsecutive(vector<int>& nums) {
+		map<int, int> record; //key: start, value: end
+		int maxLen = 0;
+		for (int i = 0; i < nums.size(); i++) {
+			auto lowerBound = record.lower_bound(nums[i]);
+			if (lowerBound != record.end() && nums[i] >= lowerBound->first && nums[i] <= lowerBound->second) { //record中已经存在该数字
+				continue;
+			}
+			map<int, int>::iterator baseIter;
+			if (lowerBound == record.begin()) {
+				record[nums[i]] = nums[i];
+				maxLen = max(maxLen, 1);
+				baseIter = record.find(nums[i]);
+			}
+			else {
+				auto prev = lowerBound;
+				prev--;
+				if (prev->second >= nums[i]) { //存在
+					continue;
+				}
+				if (nums[i] == prev->second + 1) {
+					prev->second++;
+					maxLen = max(maxLen, prev->second - prev->first + 1);
+					baseIter = prev;
+				}
+				else {
+					record[nums[i]] = nums[i];
+					baseIter = record.find(nums[i]);
+				}
+			}
+			if (lowerBound != record.end() && nums[i] == lowerBound->first - 1) {
+				baseIter->second = lowerBound->second;
+				maxLen = max(maxLen, baseIter->second - baseIter->first + 1);
+				record.erase(lowerBound);
+			}
+		}
+		return maxLen;
+	}
+};
+class Solution {
+public:
+	int longestConsecutive(vector<int>& nums) {
+		unordered_set<int> st(nums.begin(), nums.end());
+		int maxLen = 0;
+		for (const auto& e : st) {
+			if (!st.count(e - 1)) {
+				int num = e, len = 0;
+				while (st.count(num)) {
+					len++;
+					num++;
+				}
+				maxLen = max(maxLen, len);
+			}
+		}
+		return maxLen;
+	}
+};
 int main() {
-	BlockQueue bq;
-	thread producer([&] {
-		while (1) {
-			int data = rand();
-			bq.Push(data);
-			Sleep(1000);
-			cout << "produce a data: " << data << endl;
-		}
-	});
-	thread consumer([&] {
-		while (1) {
-			int data = bq.Pop();
-			cout << "consume a data: " << data << endl;
-		}
-	});
-	producer.join();
-	consumer.join();
+	vector<int> v = { -2, -3, -3, 7, -3, 0, 5, 0, -8, -4, -1, 2 };
+	int ret = Solution().longestConsecutive(v);
+	cout << ret << endl;
 	return 0;
 }
